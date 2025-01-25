@@ -1,0 +1,18 @@
+div {
+    /* Center the div */
+    margin: auto;  /* Centers horizontally */
+
+    font-family: Arial;
+
+    width: 80%;  /* or any specific width */
+    max-width: 800px;  /* optional: prevents div from getting too wide */
+    
+    /* Add spacing around it */
+    margin-bottom: 20px;  /* Space below */
+    margin-top: 20px;     /* Space above */
+    padding: 20px;        /* Inner spacing */
+
+    
+    /* Rounded corners */
+    border-radius: 8px;  /* Adjust the pixel value to make corners more/less rounded */
+}
