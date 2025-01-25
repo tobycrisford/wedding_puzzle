@@ -79,7 +79,7 @@ async function encrypt() {
 }
 
 async function decrypt() {
-    const pswd = document.getElementById('pswd').value;
+    const pswd = document.getElementById('pswd').value.toLowerCase();
     const cyphertext = await fetch('encrypted_text.txt').then((response) => response.text());
 
     try {
