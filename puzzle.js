@@ -2,9 +2,7 @@ async function load_config() {
     return await fetch('crypto_config.json').then((response) => response.json());
 }
 
-async function generate_key(pswd) {
-    
-    crypto_config = await load_config();
+async function generate_key(pswd, salt) {
     
     const encoder = new TextEncoder();
     const data = encoder.encode(pswd);
@@ -20,7 +18,7 @@ async function generate_key(pswd) {
     return await window.crypto.subtle.deriveKey(
         {
             name: 'PBKDF2',
-            salt: encoder.encode(crypto_config.PBDKDF2_SALT),
+            salt: encoder.encode(salt),
             iterations: 100000,
             hash: 'SHA-256'
         },
@@ -31,9 +29,11 @@ async function generate_key(pswd) {
     );
 }
 
-async function encrypt_text(plaintext, pswd) {
+async function encrypt_text(plaintext, pswd, salt) {
     
-    const key = await generate_key(pswd);
+    const key = await generate_key(pswd, salt);
+    const iv = new Uint8Array(12);
+    crypto.getRandomValues(iv);
 
     const encoder = new TextEncoder();
     const data = encoder.encode(plaintext);
@@ -41,25 +41,29 @@ async function encrypt_text(plaintext, pswd) {
     const encryptedData = await window.crypto.subtle.encrypt(
         {
           name: 'AES-GCM',
-          iv: new Uint8Array(12) // Not important as this is a one-time puzzle
+          iv: iv
         },
         key,
         data
     );
 
-    return btoa(String.fromCharCode.apply(null, new Uint8Array(encryptedData)));;
+    return {
+        encrypted_text: btoa(String.fromCharCode.apply(null, new Uint8Array(encryptedData))),
+        iv: btoa(String.fromCharCode.apply(null, iv))
+    }
 }
 
-async function decrypt_text(cyphertext, pswd) {
+async function decrypt_text(cyphertext, pswd, salt, iv) {
 
-    const key = await generate_key(pswd);
+    const key = await generate_key(pswd, salt);
 
     const encryptedData = Uint8Array.from(atob(cyphertext), c => c.charCodeAt(0)).buffer;
+    const ivData = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
 
     const decryptedData = await window.crypto.subtle.decrypt(
         {
             name: 'AES-GCM',
-            iv: new Uint8Array(12) // Not important as this is a one-time puzzle
+            iv: ivData
         },
         key,
         encryptedData
@@ -72,18 +76,23 @@ async function decrypt_text(cyphertext, pswd) {
 }
 
 async function encrypt() {
+    const crypto_config = await load_config();
     const plaintext = document.getElementById('user_msg').value;
     const pswd = document.getElementById('pswd').value;
 
-    document.getElementById('output').innerText = await encrypt_text(plaintext, pswd);
+    encryption_results = await encrypt_text(plaintext, pswd, crypto_config.PBKDF2_SALT);
+
+    document.getElementById('output').innerText = encryption_results.encrypted_text;
+    document.getElementById('iv').innerText = encryption_results.iv;
 }
 
 async function decrypt() {
+    const crypto_config = await load_config();
     const pswd = document.getElementById('pswd').value.toLowerCase();
     const cyphertext = await fetch('encrypted_text.txt').then((response) => response.text());
 
     try {
-        document.getElementById('output').innerText = await decrypt_text(cyphertext, pswd);
+        document.getElementById('output').innerText = await decrypt_text(cyphertext, pswd, crypto_config.PBKDF2_SALT, crypto_config.iv);
     }
     catch (e) {
         if (e.name === 'OperationError') {
